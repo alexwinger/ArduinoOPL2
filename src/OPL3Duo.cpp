@@ -25,7 +25,7 @@
  */
 
 
-#include "OPL3Duo.h"
+#include <OPL3Duo.h>
 
 // TODO: Change BOARD_TYPE to PLATFORM
 #if BOARD_TYPE == OPL2_BOARD_TYPE_ARDUINO
@@ -59,20 +59,42 @@ OPL3Duo::OPL3Duo() : OPL3() {
  * @param latch - Pin number to use for LATCH.
  * @param reset - Pin number to use for RESET.
  */
-OPL3Duo::OPL3Duo(byte a2, byte a1, byte a0, byte latch, byte reset) : OPL3(a1, a0, latch, reset) {
+OPL3Duo::OPL3Duo(byte a2, byte a1, byte a0, byte latch, byte reset) : OPL3() {
 	pinUnit = a2;
+	pinBank=a1;
+	pinAddress = a0;
+	pinLatch = latch;
+	pinReset =reset;	
 }
 
 
 /**
- * Initialize the OPL3Duo and reset the chips.
+ * Initialize interface to OPL3Duo.
  */
-void OPL3Duo::begin() {
-	pinMode(pinUnit, OUTPUT);
-	digitalWrite(pinUnit, LOW);
-	OPL3::begin();
-}
+void OPL3Duo::setupInterface() {
+  #ifdef OPL_SERIAL_DEBUG
+    Serial.begin(115200);
+    while(!Serial);
+    Serial.println("OPL serial debug enabled");
+  #endif
 
+  #if BOARD_TYPE == OPL2_BOARD_TYPE_ARDUINO
+    SPI.begin();
+    SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
+  #else
+    wiringPiSPISetup(SPI_CHANNEL, SPI_SPEED);
+  #endif
+  pinMode(pinUnit, OUTPUT);
+  pinMode(pinBank, OUTPUT);
+  pinMode(pinAddress, OUTPUT);
+  pinMode(pinLatch, OUTPUT);
+  pinMode(pinReset, OUTPUT);
+  digitalWrite(pinUnit, LOW);
+  digitalWrite(pinBank, LOW);
+  digitalWrite(pinAddress, LOW);
+  digitalWrite(pinLatch, HIGH);
+  digitalWrite(pinReset, HIGH);
+}
 
 /**
  * Create shadow registers to hold the values written to the OPL3 chips for later access. Only those registers that are
@@ -85,12 +107,7 @@ void OPL3Duo::createShadowRegisters() {
 	operatorRegisters = new byte[10 * numChannels];		// 360
 }
 
-
-/**
- * Hard reset the OPL3 chip. All registers will be reset to 0x00, This should be done before sending any register data
- * to the chip.
- */
-void OPL3Duo::reset() {
+void OPL3Duo::hardReset(){
 	// Hard reset both OPL3 chips.
 	for (byte unit = 0; unit < 2; unit ++) {
 		digitalWrite(pinUnit, unit == 1);
@@ -98,7 +115,15 @@ void OPL3Duo::reset() {
 		delay(1);
 		digitalWrite(pinReset, HIGH);
 	}
+}
 
+/**
+ * Hard reset the OPL3 chip. All registers will be reset to 0x00, This should be done before sending any register data
+ * to the chip.
+ */
+void OPL3Duo::reset() {
+	hardReset();
+	
 	// Initialize chip registers on both synth units.
 	for (byte i = 0; i < 2; i ++) {
 		setChipRegister(i, 0x01, 0x00);
@@ -204,10 +229,52 @@ void OPL3Duo::setOperatorRegister(byte baseRegister, byte channel, byte operator
  * @param value - The value to write to the register.
  */
 void OPL3Duo::write(byte bank, byte reg, byte value) {
-	digitalWrite(pinUnit, (bank & 0x02) ? HIGH : LOW);
-	OPL3::write(bank, reg, value);
+	digitalWrite(pinUnit   , (bank & 0x02) ? HIGH : LOW);
+	digitalWrite(pinBank, (bank & 0x01) ? HIGH : LOW);
+	
+	#ifdef OPL_SERIAL_DEBUG
+		Serial.print("bank: ");
+		Serial.print(bank);
+		Serial.print(", reg: ");
+		Serial.print(reg, HEX);
+		Serial.print(", val: ");
+		Serial.println(value, HEX);
+	#endif
+  write(reg, value);
 }
 
+
+/**
+ * Write a given value to a register of the selected OPL3 chip.
+ *
+ * @param reg - The register to be changed.
+ * @param value - The value to write to the register.
+ */
+void OPL3Duo::write(byte reg, byte value) {  
+  #if BOARD_TYPE == OPL2_BOARD_TYPE_ARDUINO
+    SPI.transfer(reg);
+  #else
+    wiringPiSPIDataRW(SPI_CHANNEL, &reg, 1);
+  #endif
+  
+  digitalWrite(pinLatch, LOW);
+  delayMicroseconds(8);
+
+  digitalWrite(pinLatch, HIGH);
+  delayMicroseconds(8);
+
+  digitalWrite(pinAddress, HIGH);
+  #if BOARD_TYPE == OPL2_BOARD_TYPE_ARDUINO
+    SPI.transfer(value);
+  #else
+    wiringPiSPIDataRW(SPI_CHANNEL, &value, 1);
+  #endif
+  
+  digitalWrite(pinLatch, LOW);
+  delayMicroseconds(8);
+  digitalWrite(pinLatch, HIGH);
+  delayMicroseconds(8);
+}
 
 /**
  * Get the number of 2OP channels for this implementation.

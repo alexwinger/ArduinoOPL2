@@ -12,17 +12,6 @@
 	#define SYNTH_MODE_AM_FM 2
 	#define SYNTH_MODE_AM_AM 3
 
-	#if BOARD_TYPE == OPL2_BOARD_TYPE_ARDUINO
-		#undef PIN_ADDR					// Undefine A0 and /IC pins from OPL2 and redefine for OPL3 Duo.
-		#undef PIN_RESET
-
-		#define PIN_BANK  7
-		#define PIN_ADDR  8
-		#define PIN_RESET 9
-	#else
-		#define PIN_BANK 5				// GPIO header pin 18
-	#endif
-
 
 	struct Instrument4OP {
 		Instrument subInstrument[2];		// Definition of the 2 sub instruments for each channel.
@@ -33,7 +22,6 @@
 	class OPL3: public OPL2 {
 		public:
 			OPL3();
-			OPL3(byte a1, byte a0, byte latch, byte reset);
 			virtual void begin();
 			virtual void reset();
 			virtual void createShadowRegisters();
@@ -42,7 +30,7 @@
 			virtual void setChannelRegister(byte baseRegister, byte channel, byte value);
 			virtual void setOperatorRegister(byte baseRegister, byte channel, byte operatorNum, byte value);
 			virtual byte getChipRegisterOffset(short reg);
-			virtual void write(byte bank, byte reg, byte value);
+			virtual void write(byte bank, byte reg, byte value)=0;
 
 			virtual byte getNumChannels();
 			virtual byte getNum4OPChannels();
@@ -76,8 +64,6 @@
 
 
 		protected:
-			byte pinBank = PIN_BANK;
-
 			byte numChannels = OPL3_NUM_2OP_CHANNELS;
 			byte num4OPChannels = OPL3_NUM_4OP_CHANNELS;
 

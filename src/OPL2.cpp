@@ -46,7 +46,7 @@
  */
 
 
-#include "OPL2.h"
+#include <OPL2.h>
 
 #if BOARD_TYPE == OPL2_BOARD_TYPE_ARDUINO
 	#include <SPI.h>
@@ -58,27 +58,9 @@
 
 
 /**
- * Instantiate the OPL2 library with default pin setup.
+ * Instantiate the OPL2 library
  */
 OPL2::OPL2() {
-	#if BOARD_TYPE == OPL2_BOARD_TYPE_RASPBERRY_PI
-		wiringPiSetup();
-	#endif
-}
-
-
-/**
- * Instantiate the OPL2 library with custom pin setup. This constructor is left for legacy support. Preferably custom
- * pins are specifies when calling begin().
- *
- * @param reset - Pin number to use for RESET.
- * @param address - Pin number to use for A0.
- * @param latch - Pin number to use for LATCH.
- */
-OPL2::OPL2(byte reset, byte address, byte latch) : OPL2::OPL2() {
-	pinReset   = reset;
-	pinAddress = address;
-	pinLatch   = latch;
 }
 
 
@@ -86,27 +68,7 @@ OPL2::OPL2(byte reset, byte address, byte latch) : OPL2::OPL2() {
  * Initialize the YM3812.
  */
 void OPL2::begin() {
-	#ifdef OPL_SERIAL_DEBUG
-		Serial.begin(115200);
-		while(!Serial);
-		Serial.println("OPL serial debug enabled");
-	#endif
-
-	#if BOARD_TYPE == OPL2_BOARD_TYPE_ARDUINO
-		SPI.begin();
-		SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
-	#else
-		wiringPiSPISetup(SPI_CHANNEL, SPI_SPEED);
-	#endif
-
-	pinMode(pinLatch,   OUTPUT);
-	pinMode(pinAddress, OUTPUT);
-	pinMode(pinReset,   OUTPUT);
-
-	digitalWrite(pinLatch,   HIGH);
-	digitalWrite(pinReset,   HIGH);
-	digitalWrite(pinAddress, LOW);
-
+  setupInterface();
 	createShadowRegisters();
 	reset();
 }
@@ -137,11 +99,8 @@ void OPL2::createShadowRegisters() {
  * chip.
  */
 void OPL2::reset() {
-	// Hard reset the OPL2.
-	digitalWrite(pinReset, LOW);
-	delay(1);
-	digitalWrite(pinReset, HIGH);
-
+	
+	hardReset();
 	// Initialize chip registers.
 	setChipRegister(0x00, 0x00);
 	setChipRegister(0x08, 0x40);
@@ -322,47 +281,6 @@ short OPL2::getOperatorRegisterOffset(byte baseRegister, byte channel, byte oper
 byte OPL2::getRegisterOffset(byte channel, byte operatorNum) {
 	return registerOffsets[operatorNum % 2][channel % CHANNELS_PER_BANK];
 }
-
-
-/**
- * Write the given value to an OPL2 register. This does not update the internal shadow register!
- *
- * @param reg - The register to change.
- * @param value - The value to write to the register.
- */
-void OPL2::write(byte reg, byte value) {
-	#ifdef OPL_SERIAL_DEBUG
-		Serial.print("reg: ");
-		Serial.print(reg, HEX);
-		Serial.print(", val: ");
-		Serial.println(value, HEX);
-	#endif
-
-	// Write OPL2 address.
-	digitalWrite(pinAddress, LOW);
-	#if BOARD_TYPE == OPL2_BOARD_TYPE_ARDUINO
-		SPI.transfer(reg);
-	#else
-		wiringPiSPIDataRW(SPI_CHANNEL, &reg, 1);
-	#endif
-	digitalWrite(pinLatch, LOW);
-	delayMicroseconds(16);
-	digitalWrite(pinLatch, HIGH);
-	delayMicroseconds(16);
-
-	// Write OPL2 data.
-	digitalWrite(pinAddress, HIGH);
-	#if BOARD_TYPE == OPL2_BOARD_TYPE_ARDUINO
-		SPI.transfer(value);
-	#else
-		wiringPiSPIDataRW(SPI_CHANNEL, &value, 1);
-	#endif
-	digitalWrite(pinLatch, LOW);
-	delayMicroseconds(4);
-	digitalWrite(pinLatch, HIGH);
-	delayMicroseconds(92);
-}
-
 
 /**
  * Return the number of channels for this OPL2.

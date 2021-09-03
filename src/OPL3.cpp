@@ -25,7 +25,7 @@
  */
 
 
-#include "OPL3.h"
+#include <OPL3.h>
 
 #if BOARD_TYPE == OPL2_BOARD_TYPE_ARDUINO
 	#include <SPI.h>
@@ -35,42 +35,19 @@
 	#include <wiringPiSPI.h>
 #endif
 
-
 /**
- * Create a new OPL3 instance with default pins.
+ * Create a new OPL3 instance
  *
- * A1 = D7
- * A0 = D8
- * /IC = D9
- * /WR = D10
  */
-OPL3::OPL3() : OPL2(PIN_RESET, PIN_ADDR, PIN_LATCH) {
+OPL3::OPL3() : OPL2() {
 }
-
-
-/**
- * Create an OPL3 instance with custom pins.
- *
- * @param a1 - Pin number to use for A1.
- * @param a0 - Pin number to use for A0.
- * @param latch - Pin number to use for LATCH.
- * @param reset - Pin number to use for RESET.
- */
-OPL3::OPL3(byte a1, byte a0, byte latch, byte reset) : OPL2(reset, a0, latch) {
-	pinBank = a1;
-}
-
 
 /**
  * Initialize the OPL3 library and reset the chip.
  */
 void OPL3::begin() {
-	pinMode(pinBank, OUTPUT);
-	digitalWrite(pinBank, LOW);
-	OPL2::begin();
+  OPL2::begin();
 }
-
-
 /**
  * Create shadow registers to hold the values written to the OPL3 chip for later access. Only those registers that are
  * are valid on the YMF262 are created to be as memory friendly as possible for platforms with limited RAM such as the
@@ -88,9 +65,7 @@ void OPL3::createShadowRegisters() {
  * chip.
  */
 void OPL3::reset() {
-	digitalWrite(pinReset, LOW);
-	delay(1);
-	digitalWrite(pinReset, HIGH);
+	hardReset();
 
 	// Initialize chip registers and enable OPL3 mode temporarily.
 	setChipRegister(0x00, 0x00);
@@ -187,50 +162,6 @@ void OPL3::setOperatorRegister(byte baseRegister, byte channel, byte operatorNum
 	byte reg = baseRegister + getRegisterOffset(channel % CHANNELS_PER_BANK, operatorNum);
 	write(bank, reg, value);
 }
-
-
-/**
- * Write a given value to a register of the OPL3 chip.
- *
- * @param bank - The bank (A1) of the register [0, 1].
- * @param reg - The register to be changed.
- * @param value - The value to write to the register.
- */
-void OPL3::write(byte bank, byte reg, byte value) {
-	#ifdef OPL_SERIAL_DEBUG
-		Serial.print("bank: ");
-		Serial.print(bank);
-		Serial.print(", reg: ");
-		Serial.print(reg, HEX);
-		Serial.print(", val: ");
-		Serial.println(value, HEX);
-	#endif
-
-	digitalWrite(pinAddress, LOW);
-	digitalWrite(pinBank, (bank & 0x01) ? HIGH : LOW);
-	#if BOARD_TYPE == OPL2_BOARD_TYPE_ARDUINO
-		SPI.transfer(reg);
-	#else
-		wiringPiSPIDataRW(SPI_CHANNEL, &reg, 1);
-	#endif
-	digitalWrite(pinLatch, LOW);
-	delayMicroseconds(8);
-
-	digitalWrite(pinLatch, HIGH);
-	delayMicroseconds(8);
-
-	digitalWrite(pinAddress, HIGH);
-	#if BOARD_TYPE == OPL2_BOARD_TYPE_ARDUINO
-		SPI.transfer(value);
-	#else
-		wiringPiSPIDataRW(SPI_CHANNEL, &value, 1);
-	#endif
-	digitalWrite(pinLatch, LOW);
-	delayMicroseconds(8);
-	digitalWrite(pinLatch, HIGH);
-	delayMicroseconds(8);
-}
-
 
 /**
  * Get the number of 2OP channels for this implementation.

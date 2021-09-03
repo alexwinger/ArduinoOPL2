@@ -1,3 +1,4 @@
+#include <arduino.h>
 #ifndef TRUE
 	#define TRUE 1
 #endif
@@ -16,26 +17,7 @@
 #ifndef OPL2_LIB_H_
 	#define OPL2_LIB_H_
 
-	#define OPL2_BOARD_TYPE_ARDUINO      0
-	#define OPL2_BOARD_TYPE_RASPBERRY_PI 1
 
-	// !!! IMPORTANT !!!
-	// In order to correctly compile the library for your platform be sure to set the correct BOARD_TYPE below.
-	#define BOARD_TYPE OPL2_BOARD_TYPE_ARDUINO
-
-	#if BOARD_TYPE == OPL2_BOARD_TYPE_ARDUINO
-		#define PIN_LATCH 10
-		#define PIN_ADDR   9
-		#define PIN_RESET  8
-	#else
-		#define PIN_LATCH 3				// GPIO header pin 15
-		#define PIN_ADDR  4				// GPIO header pin 16
-		#define PIN_RESET 2				// GPIO header pin 13
-
-		// SPI setup for WiringPi.
-		#define SPI_SPEED   8000000
-		#define SPI_CHANNEL 0
-	#endif
 
 	// Generic OPL2 definitions.
 	#define OPL2_NUM_CHANNELS 9
@@ -91,7 +73,7 @@
 	#endif
 
 	#if BOARD_TYPE == OPL2_BOARD_TYPE_ARDUINO
-		#include <Arduino.h>
+		
 	#else
 		#include <stdint.h>
 		#include <algorithm>
@@ -127,9 +109,10 @@
 	class OPL2 {
 		public:
 			OPL2();
-			OPL2(byte reset, byte address, byte latch);
 			virtual void begin();
 			virtual void reset();
+			virtual void hardReset()=0;
+      virtual void setupInterface()=0;
 			virtual void createShadowRegisters();
 			void init();
 
@@ -143,7 +126,7 @@
 			virtual byte getChipRegisterOffset(short reg);
 			virtual byte getChannelRegisterOffset(byte baseRegister, byte channel);
 			virtual short getOperatorRegisterOffset(byte baseRegister, byte channel, byte operatorNum);
-			virtual void write(byte reg, byte data);
+			virtual void write(byte reg, byte data)=0;
 
 			virtual byte getNumChannels();
 
@@ -221,10 +204,6 @@
 			template <typename T>
 			T clampValue(T value, T min, T max);
 
-			byte pinReset   = PIN_RESET;
-			byte pinAddress = PIN_ADDR;
-			byte pinLatch   = PIN_LATCH;
-
 			byte* chipRegisters;
 			byte* channelRegisters;
 			byte* operatorRegisters;
@@ -258,4 +237,3 @@
 			};
 	};
 #endif
-
