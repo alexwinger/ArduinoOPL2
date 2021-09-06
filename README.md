@@ -25,6 +25,9 @@ The OPL3 Duo! is a more capable version of the OPL2 Audio Board. It has 2 YMF262
 The OPL3 Duo! board is available on my [Tindie store](https://www.tindie.com/products/cheerful/opl3-duo/).
 ![](https://raw.githubusercontent.com/DhrBaksteen/ArduinoOPL2/master/extra/OPL3Duo_board.jpg)
 
+### OPL3 Direct connection
+You can connect a YMF262 directly to an arduino (mainly for test purposes)
+
 
 ## 1. Installing the library
 #### Arduino / Teensy

@@ -6,7 +6,7 @@
  *
  * @param opl3Ref - Reference to the OPL3Duo instance used for playback.
  */
-TuneParser::TuneParser(OPL3Duo* opl3Ref) {
+TuneParser::TuneParser(OPL3* opl3Ref) {
 	opl3 = opl3Ref;
 }
 

@@ -52,7 +52,7 @@ const byte notes[3][7] = {{ NOTE_A,  NOTE_B,  NOTE_C,  NOTE_D,  NOTE_E,  NOTE_F,
 
 class TuneParser {
 	public:
-		TuneParser(OPL3Duo* opl3Ref);
+		TuneParser(OPL3* opl3Ref);
 		TuneParser(OPL2* opl2Ref);
 		void begin();
 		void play(const char* voice0);
@@ -79,7 +79,7 @@ class TuneParser {
 		byte parseNumber(Voice voice, int nMin, int nMax);
 
 	private:
-		OPL3Duo* opl3 = NULL;
+		OPL3* opl3 = NULL;
 		byte oplChannel4OP = 0;
 		bool channelInUse[TP_NUM_CHANNELS] = {
 			false, false, false, false, false, false,
